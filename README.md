@@ -1,3 +1,3 @@
-# Predictiz
+# Web Scrapping Basketball Reference
 ## What's planned ?
-`Predictiz, a temporary project name, is under secret for the moment`
+`Web scrapper for stats on https://www.basketball-reference.com/`
