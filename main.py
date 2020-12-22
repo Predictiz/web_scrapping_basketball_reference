@@ -1,6 +1,7 @@
 import requests
 from selenium_chrome_driver import driver
 from bs4 import BeautifulSoup
+from dao import AtlasDB
 
 # Global variables
 parser = "lxml"
@@ -25,8 +26,8 @@ def main():
     games = scrap_games(str(season_input))
 
     # Scrap the stats from the whole players for whole games
-    for game in games:
-        players_home, players_visitor = scrap_player_stats_from_game(game["home"], game["visitor"], game["csk"])
+    # for game in games:
+    #     players_home, players_visitor = scrap_player_stats_from_game(game["home"], game["visitor"], game["csk"])
 
     # Close the selenium driver
     driver.close()
@@ -35,7 +36,24 @@ def main():
     # Start MongoDB importing
     print("MongoDB uploading launched...")
     # TODO : IMPORTING
+ 
+
+    db = AtlasDB() 
+
+    for team in teams:
+        db.addTeam(team['name'], team['nick'])
+    
+
+    for game in games:
+        players_home, players_visitor = scrap_player_stats_from_game(game["home"], game["visitor"], game["csk"])
+        db.addGame(game['csk'], game['date'], game['hour'], game['visitor'],game['home'], game['visitor_pts'], game['home_pts'] )
+        for stat in players_home:
+            db.addPlayerStat(game['csk'], stat['name'], game['home'], stat)
+        for stat in players_visitor:
+            db.addPlayerStat(game['csk'], stat['name'], game['visitor'], stat)
+
     print("MongoDB uploading finished...")
+        
 
     # Start MongoDB post_processing
     print("MongoDB post processing launched...")
@@ -64,7 +82,7 @@ def scrap_team():
                 "gameIds": [],
                 "rosterIds": []}
 
-        print(team)
+        # print(team)
         teams.append(team)
 
     for row in confs_standings_w:
@@ -79,7 +97,7 @@ def scrap_team():
                 "srs": float(row.contents[7].text),
                 "gameIds": [],
                 "rosterIds": []}
-        print(team)
+        # print(team)
         teams.append(team)
     return teams
 
@@ -96,7 +114,7 @@ def scrap_games(season):
 
     for month in months:
         driver.get(month)
-        print(month)
+        # print(month)
 
         req = requests.get(driver.current_url)
         soup = BeautifulSoup(req.text, parser)
@@ -133,7 +151,7 @@ def scrap_games(season):
                     game["visitor_pts"] = int(visitor_pts.text)
 
                 games.append(game)
-                print(game)
+                # print(game)
 
     return games
 
@@ -143,9 +161,9 @@ def scrap_player_stats_from_game(home, visitor, csk):
     roster_home = []
     roster_visitor = []
 
-    driver.get("https://www.basketball-reference.com/boxscores/"+csk+".html")
-    req = requests.get(driver.current_url)
-    print(driver.current_url)
+    # driver.get("https://www.basketball-reference.com/boxscores/"+csk+".html")
+    req = requests.get("https://www.basketball-reference.com/boxscores/"+csk+".html")
+    print("https://www.basketball-reference.com/boxscores/"+csk+".html")
 
     if req.status_code == 404:
         print("404 NOT FOUND")
@@ -221,8 +239,8 @@ def scrap_player_stats_from_game(home, visitor, csk):
                                 int(stat.text) if "." not in stat.text else float(stat.text))
                         player[stat["data-stat"]] = value
 
-    print(roster_home)
-    print(roster_visitor)
+    # print(roster_home)
+    # print(roster_visitor)
 
     return roster_home, roster_visitor
 
