@@ -2,6 +2,7 @@ import requests
 from selenium_chrome_driver import driver
 from bs4 import BeautifulSoup
 from dao import AtlasDB
+import datetime
 
 # Global variables
 parser = "lxml"
@@ -17,7 +18,8 @@ def main():
     stats_table = driver.find_element_by_id("stats")
     season = stats_table.find_element_by_xpath(
         "//th[@data-stat='season' and ./a/text()='" + str(season_input - 1) + "-" + str(season_input)[2:] + "']/a")
-    season.click()
+    if(season.is_displayed()) & (season.is_enabled()):
+        season.click()
     print("Season accessed")
     # Scrap all teams with players for the season
     teams = scrap_team()
@@ -128,7 +130,12 @@ def scrap_games(season):
                 date_th = row.find("th", {"data-stat": "date_game"})
                 if date_th is not None:
                     game["csk"] = date_th["csk"]
-                    game["date"] = date_th.a.text
+                    dateText = date_th["csk"]
+                    date_year = int(dateText[0:4])
+                    date_month = int(dateText[4:6])
+                    date_day = int(dateText[6:8])
+                    date = datetime.datetime(date_year, date_month, date_day)
+                    game["date"] = date
 
                 game_hour = row.find("td", {"data-stat": "game_start_time"})
                 if game_hour is not None:
