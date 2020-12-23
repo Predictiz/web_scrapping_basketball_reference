@@ -200,14 +200,11 @@ def scrap_player_stats_from_game(home, visitor, csk, date):
                     for stat in stats:
                         if stat["data-stat"] in ["mp", "reason"]:
                             value = stat.text
-                            if stat["data-stat"] == "reason" : 
-                                #2019-10-22
-                                
+                            if stat["data-stat"] == "reason":
                                 injured_req = requests.get("https://www.prosportstransactions.com/basketball/Search/SearchResults.php?Player=" + player['name'] + "&Team=&BeginDate=" + str(date.year - 1) + "-" + str(date.month) + "-" + str(date.day) + "&EndDate=" + str(date.year) + "-" + str(date.month) + "-" + str(date.day) + "&ILChkBx=yes&Submit=Search")
                                 soup = BeautifulSoup(injured_req.text, parser)
                                 table = soup.find({"class": "datatable"})
                                 if table is not None:
-                   
                                     injured_rows = table.find_all('tr', {'align': 'left'})
                                     last_entry = injured_rows[len(injured_rows) - 1]
                                     if last_entry is not None :
@@ -252,6 +249,24 @@ def scrap_player_stats_from_game(home, visitor, csk, date):
                     for stat in stats:
                         if stat["data-stat"] in ["mp", "reason"]:
                             value = stat.text
+                            if stat["data-stat"] == "reason":
+                                injured_req = requests.get(
+                                    "https://www.prosportstransactions.com/basketball/Search/SearchResults.php?Player=" +
+                                    player['name'] + "&Team=&BeginDate=" + str(date.year - 1) + "-" + str(
+                                        date.month) + "-" + str(date.day) + "&EndDate=" + str(date.year) + "-" + str(
+                                        date.month) + "-" + str(date.day) + "&ILChkBx=yes&Submit=Search")
+                                soup = BeautifulSoup(injured_req.text, parser)
+                                table = soup.find({"class": "datatable"})
+                                if table is not None:
+                                    injured_rows = table.find_all('tr', {'align': 'left'})
+                                    last_entry = injured_rows[len(injured_rows) - 1]
+                                    if last_entry is not None:
+                                        tds = last_entry.find_all('td')
+                                        if tds is not None:
+                                            if (tds[3] is not None) & (tds[4] is not None):
+                                                if tds[3].text != " ":
+                                                    value = tds[4].text
+                                                    print(value)
                         else:
                             value = "" if stat.text == "" else (
                                 int(stat.text) if "." not in stat.text else float(stat.text))
