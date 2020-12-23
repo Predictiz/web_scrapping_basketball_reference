@@ -121,10 +121,10 @@ def scrap_games(season):
                 date_th = row.find("th", {"data-stat": "date_game"})
                 if date_th is not None:
                     game["csk"] = date_th["csk"]
-                    dateText = date_th["csk"]
-                    date_year = int(dateText[0:4])
-                    date_month = int(dateText[4:6])
-                    date_day = int(dateText[6:8])
+                    date_text = date_th["csk"]
+                    date_year = int(date_text[0:4])
+                    date_month = int(date_text[4:6])
+                    date_day = int(date_text[6:8])
                     date = datetime.datetime(date_year, date_month, date_day)
                     game["date"] = date
 
@@ -203,18 +203,18 @@ def scrap_player_stats_from_game(home, visitor, csk, date):
                             if stat["data-stat"] == "reason" : 
                                 #2019-10-22
                                 
-                                injuredReq = requests.get("https://www.prosportstransactions.com/basketball/Search/SearchResults.php?Player="+player['name']+"&Team=&BeginDate="+ str(date.year - 1) +"-"+ str(date.month)+"-"+str(date.day)+"&EndDate="+ str(date.year) +"-"+str(date.month)+"-"+str(date.day)+"&ILChkBx=yes&Submit=Search")
-                                soup = BeautifulSoup(injuredReq.text, parser)
-                                table = soup.find(class_="datatable")
-                                if(table != None):
+                                injured_req = requests.get("https://www.prosportstransactions.com/basketball/Search/SearchResults.php?Player=" + player['name'] + "&Team=&BeginDate=" + str(date.year - 1) + "-" + str(date.month) + "-" + str(date.day) + "&EndDate=" + str(date.year) + "-" + str(date.month) + "-" + str(date.day) + "&ILChkBx=yes&Submit=Search")
+                                soup = BeautifulSoup(injured_req.text, parser)
+                                table = soup.find({"class": "datatable"})
+                                if table is not None:
                    
-                                    injuredRows = table.find_all('tr',{'align':'left'})
-                                    lastEntry = injuredRows[len(injuredRows)-1]
-                                    if(lastEntry is not None):
-                                        tds = lastEntry.find_all('td')
-                                        if(tds is not None):
+                                    injured_rows = table.find_all('tr', {'align': 'left'})
+                                    last_entry = injured_rows[len(injured_rows) - 1]
+                                    if last_entry is not None :
+                                        tds = last_entry.find_all('td')
+                                        if tds is not None:
                                             if(tds[3] is not None) & (tds[4] is not None):
-                                                if(tds[3].text != " "):
+                                                if tds[3].text != " ":
                                                     value = tds[4].text
                                                     print(value)
                                                    
