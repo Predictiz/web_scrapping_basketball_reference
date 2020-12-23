@@ -5,7 +5,7 @@
 #VSCODE
 .vscode
 virtual-env
-
+selenium_chrome_driver.py
 # IntelliJ project files
 .idea
 *.iml

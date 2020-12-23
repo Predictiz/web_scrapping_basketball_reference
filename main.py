@@ -11,7 +11,7 @@ parser = "lxml"
 def main():
     print("Web Scrapping launched...")
     # season_input = input("Quelle saison ? (Format XXXX) : ")
-    season_input = int("2020")
+    season_input = int("2019")
     # Open the WebBrowser
     driver.get("https://www.basketball-reference.com/leagues/")
     # Go to the wanted season stats page
@@ -44,7 +44,7 @@ def main():
         db.add_team(team)
 
     for game in games:
-        players_home, players_visitor = scrap_player_stats_from_game(game["home_nick"], game["visitor_nick"], game["csk"])
+        players_home, players_visitor = scrap_player_stats_from_game(game["home_nick"], game["visitor_nick"], game["csk"], game['date'])
         db.add_game(game)
         for stat in players_home:
             db.add_player_stats(game["csk"], stat["name"], game["home_nick"], stat)
@@ -155,7 +155,7 @@ def scrap_games(season):
 
 
 # Scrap player stats from a specific game
-def scrap_player_stats_from_game(home, visitor, csk):
+def scrap_player_stats_from_game(home, visitor, csk, date):
     roster_home = []
     roster_visitor = []
 
@@ -200,10 +200,30 @@ def scrap_player_stats_from_game(home, visitor, csk):
                     for stat in stats:
                         if stat["data-stat"] in ["mp", "reason"]:
                             value = stat.text
+                            if stat["data-stat"] == "reason" : 
+                                #2019-10-22
+                                
+                                injuredReq = requests.get("https://www.prosportstransactions.com/basketball/Search/SearchResults.php?Player="+player['name']+"&Team=&BeginDate="+ str(date.year - 1) +"-"+ str(date.month)+"-"+str(date.day)+"&EndDate="+ str(date.year) +"-"+str(date.month)+"-"+str(date.day)+"&ILChkBx=yes&Submit=Search")
+                                soup = BeautifulSoup(injuredReq.text, parser)
+                                table = soup.find(class_="datatable")
+                                if(table != None):
+                   
+                                    injuredRows = table.find_all('tr',{'align':'left'})
+                                    lastEntry = injuredRows[len(injuredRows)-1]
+                                    if(lastEntry is not None):
+                                        tds = lastEntry.find_all('td')
+                                        if(tds is not None):
+                                            if(tds[3] is not None) & (tds[4] is not None):
+                                                if(tds[3].text != " "):
+                                                    value = tds[4].text
+                                                    print(value)
+                                                   
                         else:
                             value = "" if stat.text == "" else (
                                 int(stat.text) if "." not in stat.text else float(stat.text))
                         player[stat["data-stat"]] = value
+    
+
 
     if simple_table_visitor is not None:
         rows = simple_table_visitor.find("tbody").find_all("tr", {"class": None})
