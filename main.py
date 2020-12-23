@@ -33,32 +33,23 @@ def main():
     driver.close()
     print("Web Scrapping finished...")
 
-    # Start MongoDB importing
-    print("MongoDB uploading launched...")
-    # TODO : IMPORTING
- 
+    # Start MongoDB importing & processing
+    print("MongoDB uploading and processing launched...")
 
-    db = AtlasDB() 
+    db = AtlasDB(str(season_input))
 
     for team in teams:
-        db.addTeam(team['name'], team['nick'])
-    
+        db.add_team(team)
 
     for game in games:
-        players_home, players_visitor = scrap_player_stats_from_game(game["home"], game["visitor"], game["csk"])
-        db.addGame(game['csk'], game['date'], game['hour'], game['visitor'],game['home'], game['visitor_pts'], game['home_pts'] )
+        players_home, players_visitor = scrap_player_stats_from_game(game["home_nick"], game["visitor_nick"], game["csk"])
+        db.add_game(game)
         for stat in players_home:
-            db.addPlayerStat(game['csk'], stat['name'], game['home'], stat)
+            db.add_player_stats(game["csk"], stat["name"], game["home_nick"], stat)
         for stat in players_visitor:
-            db.addPlayerStat(game['csk'], stat['name'], game['visitor'], stat)
+            db.add_player_stats(game["csk"], stat["name"], game["visitor_nick"], stat)
 
-    print("MongoDB uploading finished...")
-        
-
-    # Start MongoDB post_processing
-    print("MongoDB post processing launched...")
-    # TODO : POST PROCESSING
-    print("MongoDB post processing finished...")
+    print("MongoDB uploading and processing finished...")
 
 
 # Scrap teams from current URL
@@ -70,7 +61,7 @@ def scrap_team():
     confs_standings_w = soup.find("table", {"id": "confs_standings_W"}).find_all("tr", {"class": "full_table"})
 
     for row in confs_standings_e:
-        team = {"nick": row.contents[0].a['href'][7:10],
+        team = {"nick": row.contents[0].a["href"][7:10],
                 "name": row.contents[0].a.text,
                 "wins": int(row.contents[1].text),
                 "losses": int(row.contents[2].text),
@@ -86,7 +77,7 @@ def scrap_team():
         teams.append(team)
 
     for row in confs_standings_w:
-        team = {"nick": row.contents[0].a['href'][7:10],
+        team = {"nick": row.contents[0].a["href"][7:10],
                 "name": row.contents[0].a.text,
                 "wins": int(row.contents[1].text),
                 "losses": int(row.contents[2].text),
@@ -136,11 +127,11 @@ def scrap_games(season):
 
                 visitor_nick = row.find("td", {"data-stat": "visitor_team_name"})
                 if visitor_nick is not None:
-                    game["visitor"] = visitor_nick.a["href"][7:10]
+                    game["visitor_nick"] = visitor_nick.a["href"][7:10]
 
                 home_nick = row.find("td", {"data-stat": "home_team_name"})
                 if home_nick is not None:
-                    game["home"] = home_nick.a["href"][7:10]
+                    game["home_nick"] = home_nick.a["href"][7:10]
 
                 home_pts = row.find("td", {"data-stat": "home_pts"})
                 if home_pts is not None:
