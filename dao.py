@@ -37,17 +37,18 @@ class AtlasDB:
             retour = self.table_player.insert_one({"name": name})
             return retour.inserted_id
         else:
-            return None
+            return exist['_id']
 
     def add_player_stats(self, game_csk, player_name, team_name, stats):
         team = self.table_team.find_one({"nick": team_name})
         game = self.table_game.find_one({"csk": game_csk})
-        player = self.table_player.find_one({"nick": player_name})
+        player = self.table_player.find_one({"name": player_name})
         if player is None:
             player_id = self.add_player(player_name)
         else:
             player_id = player["_id"]
 
+        
         if (team is not None) & (game is not None):
             # Insert in Player Stats
             self.table_player_stats.insert_one(

@@ -11,7 +11,7 @@ parser = "lxml"
 def main():
     print("Web Scrapping launched...")
     # season_input = input("Quelle saison ? (Format XXXX) : ")
-    season_input = int("2019")
+    season_input = int("2016")
     # Open the WebBrowser
     driver.get("https://www.basketball-reference.com/leagues/")
     # Go to the wanted season stats page
