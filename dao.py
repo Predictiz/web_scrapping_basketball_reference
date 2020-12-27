@@ -45,8 +45,10 @@ class AtlasDB:
         player = self.table_player.find_one({"name": player_name})
         if player is None:
             player_id = self.add_player(player_name)
+            # print("PLAYER IS NONE, ADD PLAYER : "+str(player_id))
         else:
             player_id = player["_id"]
+            # print("PLAYER IS NOT NONE, get id : "+str(player_id))
 
         
         if (team is not None) & (game is not None):
