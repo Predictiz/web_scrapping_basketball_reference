@@ -157,11 +157,8 @@ def scrap_games(season):
                 
                 attendance = row.find("td", {"data-stat": "attendance"})
                 if attendance is not None:
-                    if attendance.text is not None:
-                        game["attendance"] = int(attendance.text.replace(",",""))
-                        
-
-                
+                    if (attendance.text != "") & (attendance.text is not None):
+                        game["attendance"] = int(attendance.text.replace(",", ""))
 
                 games.append(game)
                 # print(game)
