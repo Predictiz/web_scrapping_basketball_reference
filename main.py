@@ -148,6 +148,21 @@ def scrap_games(season):
                 if visitor_pts is not None:
                     game["visitor_pts"] = int(visitor_pts.text)
 
+                overtime = row.find("td", {"data-stat": "overtimes"})
+                if overtime is not None:
+                    if(overtime.text != "") &(overtime.text != " "):
+                        game["overtime"] = True
+                    else:
+                        game["overtime"] = False
+                
+                attendance = row.find("td", {"data-stat": "attendance"})
+                if attendance is not None:
+                    if attendance.text is not None:
+                        game["attendance"] = int(attendance.text.replace(",",""))
+                        
+
+                
+
                 games.append(game)
                 # print(game)
 
@@ -175,6 +190,7 @@ def scrap_player_stats_from_game(home, visitor, csk, date):
 
     if simple_table_home is not None:
         rows = simple_table_home.find("tbody").find_all("tr", {"class": None})
+        post = 0
         for row in rows:
             player = {}
             player_th = row.find("th", {"data-stat": "player"})
@@ -187,6 +203,11 @@ def scrap_player_stats_from_game(home, visitor, csk, date):
                     else:
                         value = "" if stat.text == "" else (int(stat.text) if "." not in stat.text else float(stat.text))
                     player[stat["data-stat"]] = value
+                if(post < 5):
+                    player["started"] = 1 
+                else:
+                    player["started"] = 0
+                post +=1
                 roster_home.append(player)
 
     if advanced_table_home is not None:
@@ -200,6 +221,11 @@ def scrap_player_stats_from_game(home, visitor, csk, date):
                     for stat in stats:
                         if stat["data-stat"] in ["mp", "reason"]:
                             value = stat.text
+                            if stat["data-stat"] == "mp":
+                                time_played= stat.text.split(":")
+                                minute_played = int(time_played[0])
+                                second_played = (int(time_played[1])) / 60
+                                value = minute_played + second_played
                             if stat["data-stat"] == "reason":
                                 injured_req = requests.get("https://www.prosportstransactions.com/basketball/Search/SearchResults.php?Player=" + player['name'] + "&Team=&BeginDate=" + str(date.year - 1) + "-" + str(date.month) + "-" + str(date.day) + "&EndDate=" + str(date.year) + "-" + str(date.month) + "-" + str(date.day) + "&ILChkBx=yes&Submit=Search")
                                 soup = BeautifulSoup(injured_req.text, parser)
@@ -224,6 +250,7 @@ def scrap_player_stats_from_game(home, visitor, csk, date):
 
     if simple_table_visitor is not None:
         rows = simple_table_visitor.find("tbody").find_all("tr", {"class": None})
+        post = 0
         for row in rows:
             player = {}
             player_th = row.find("th", {"data-stat": "player"})
@@ -236,6 +263,11 @@ def scrap_player_stats_from_game(home, visitor, csk, date):
                     else:
                         value = "" if stat.text == "" else (int(stat.text) if "." not in stat.text else float(stat.text))
                     player[stat["data-stat"]] = value
+                if(post < 5):
+                    player["started"] = 1 
+                else:
+                    player["started"] = 0
+                post +=1
                 roster_visitor.append(player)
 
     if advanced_table_visitor is not None:
@@ -249,6 +281,11 @@ def scrap_player_stats_from_game(home, visitor, csk, date):
                     for stat in stats:
                         if stat["data-stat"] in ["mp", "reason"]:
                             value = stat.text
+                            if stat["data-stat"] == "mp":
+                                time_played= stat.text.split(":")
+                                minute_played = int(time_played[0])
+                                second_played = (int(time_played[1])) / 60
+                                value = minute_played + second_played
                             if stat["data-stat"] == "reason":
                                 injured_req = requests.get(
                                     "https://www.prosportstransactions.com/basketball/Search/SearchResults.php?Player=" +
