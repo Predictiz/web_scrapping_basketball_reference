@@ -22,10 +22,10 @@ def main():
         season.click()
     print("Season accessed")
     # Scrap all teams with players for the season
-    teams = scrap_team()
+    teams = scrap_team(season_input)
 
     # Scrap the stats from all games
-    games = scrap_games(str(season_input))
+    games = scrap_games(str(season_input), teams)
 
     # Scrap the stats from the whole players for whole games
     # for game in games:
@@ -55,7 +55,7 @@ def main():
 
 
 # Scrap teams from current URL
-def scrap_team():
+def scrap_team(season):
     teams = []
     req = requests.get(driver.current_url)
     soup = BeautifulSoup(req.text, parser)
@@ -92,11 +92,29 @@ def scrap_team():
                 "rosterIds": []}
         # print(team)
         teams.append(team)
+
+    if(season <= 2017):
+        season_year = 2017
+    else:
+        season_year = season -1
+    url = requests.get("https://projects.fivethirtyeight.com/"+ str(season_year)+"-nba-predictions/")
+    soup = BeautifulSoup(url.text,parser)
+    rows_rating = soup.find("table", {"id":"standings-table"}).find("tbody").find_all("tr")
+    for row_rating in rows_rating:
+        if(row_rating != None):
+            team_cell = row_rating.find('td',{'class': "team"})
+            team_nick = team_cell['data-str'].split()
+            for team in teams:
+                splitted_name = team['name'].split()
+                nick = splitted_name[len(splitted_name)-1]
+                if(nick == team_nick[len(team_nick)-1]):
+                    team['elo_score'] = int(row_rating.find('td').text)
+                    team['elo_before_game'] = int(row_rating.find('td').text)
     return teams
 
 
 # Scrap games from team from season
-def scrap_games(season):
+def scrap_games(season, teams):
     games = []
     driver.get("https://www.basketball-reference.com/leagues/NBA_" + season + "_games.html")
 
@@ -165,6 +183,36 @@ def scrap_games(season):
 
                 games.append(game)
                 # print(game)
+    for game in games:
+        for team in teams:
+            if(team['nick'] == game['home_nick']):
+                home_team = team
+            elif (team['nick'] == game['visitor_nick']):
+                visitor_team = team
+
+
+        if(home_team != None) & (visitor_team != None):
+                game['home_elo_before_game'] = home_team['elo_before_game']
+                game['visitor_elo_before_game'] = visitor_team['elo_before_game']
+
+                # si victoire de l'equipe home
+                if(game['home_pts'] > game['visitor_pts']):
+                    game['winner'] = 1
+                    p_win = 1/(1 + pow(10., -(home_team['elo_before_game'] - visitor_team['elo_before_game'])/400))
+                    delta = 20*(1 - p_win)
+                    home_team['elo_before_game'] = home_team['elo_before_game'] + delta
+                    visitor_team['elo_before_game'] = visitor_team['elo_before_game'] - delta
+
+                # si égalité ou défaite de l'équipe home
+                else:
+                    game['winner'] = 0
+                    p_win = 1/(1 + pow(10., -(visitor_team['elo_before_game'] - home_team['elo_before_game'])/400))
+                    delta = 20*(1 - p_win)
+                    home_team['elo_before_game'] = home_team['elo_before_game'] - delta
+                    visitor_team['elo_before_game'] = visitor_team['elo_before_game'] + delta
+    
+    for team in teams:
+        team.pop('elo_before_game', None)
 
     return games
 
