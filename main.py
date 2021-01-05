@@ -11,6 +11,7 @@ parser = "lxml"
 def main():
     print("Web Scrapping launched...")
     season_input = int(input("Quelle saison ? (Format XXXX) : "))
+    limit_input = int(input(" match à partir duquel commencez le scrapping  (0 pour commencer au début): "))
     # season_input = int("2019")
     # Open the WebBrowser
     driver.get("https://www.basketball-reference.com/leagues/")
@@ -43,13 +44,16 @@ def main():
     for team in teams:
         db.add_team(team)
 
+    i = 1
     for game in games:
-        players_home, players_visitor = scrap_player_stats_from_game(game["home_nick"], game["visitor_nick"], game["csk"], game['date'])
-        db.add_game(game)
-        for stat in players_home:
-            db.add_player_stats(game["csk"], stat["name"], game["home_nick"], stat)
-        for stat in players_visitor:
-            db.add_player_stats(game["csk"], stat["name"], game["visitor_nick"], stat)
+        if(i > limit_input):
+            players_home, players_visitor = scrap_player_stats_from_game(game["home_nick"], game["visitor_nick"], game["csk"], game['date'])
+            db.add_game(game)
+            for stat in players_home:
+                db.add_player_stats(game["csk"], stat["name"], game["home_nick"], stat)
+            for stat in players_visitor:
+                db.add_player_stats(game["csk"], stat["name"], game["visitor_nick"], stat)
+        i +=1
 
     print("MongoDB uploading and processing finished...")
 

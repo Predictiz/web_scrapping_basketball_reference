@@ -1,5 +1,6 @@
 from pymongo import MongoClient
 import os
+import time
 
 
 class AtlasDB:
@@ -7,7 +8,9 @@ class AtlasDB:
         self.client = MongoClient(os.environ["PREDICTIZ_CREDENTIALS"])
         dblist = self.client.list_database_names()
         if "season_" + season in dblist:
-            raise IOError("Cette base de donnée existe déjà.")
+            #raise IOError("Cette base de donnée existe déjà.")
+            print("attention, cette base de donnée existe déja, vous avez 5 secondes pour annuler l'opération")
+            time.sleep(5)
         db = self.client["season_" + season]
         self.table_team = db["team"]
         self.table_player = db["player"]
@@ -16,7 +19,9 @@ class AtlasDB:
         print("Atlas MongoDB connected")
 
     def add_team(self, team):
-        self.table_team.insert_one(team)
+        exist = self.table_team.find_one({"nick": team['nick']})
+        if(exist == None):
+            self.table_team.insert_one(team)
 
     def add_game(self, game):
         visitor = self.table_team.find_one({"nick": game["visitor_nick"]})
