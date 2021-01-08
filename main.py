@@ -20,7 +20,11 @@ def main():
     season = stats_table.find_element_by_xpath(
         "//th[@data-stat='season' and ./a/text()='" + str(season_input - 1) + "-" + str(season_input)[2:] + "']/a")
     if(season.is_displayed()) & (season.is_enabled()):
-        season.click()
+        try:
+            season.click()
+        except Exception:
+            driver.implicitly_wait(5)
+            season.click()
     print("Season accessed")
     # Scrap all teams with players for the season
     teams = scrap_team(season_input)
@@ -56,6 +60,58 @@ def main():
         i +=1
 
     print("MongoDB uploading and processing finished...")
+
+
+def daily_scrapping():
+
+    print("Daily Scrapping launched...")
+    season_input = 2021
+    # season_input = int("2019")
+    # Open the WebBrowser
+    driver.get("https://www.basketball-reference.com/leagues/")
+    # Go to the wanted season stats page
+    stats_table = driver.find_element_by_id("stats")
+    season = stats_table.find_element_by_xpath(
+        "//th[@data-stat='season' and ./a/text()='" + str(season_input - 1) + "-" + str(season_input)[2:] + "']/a")
+    if(season.is_displayed()) & (season.is_enabled()):
+        season.click()
+    print("Season accessed")
+    # Scrap all teams with players for the season
+    teams = scrap_team(season_input)
+
+    # Scrap the stats from all games
+    games = scrap_games(str(season_input), teams)
+
+    # Close the selenium driver
+    driver.close()
+    print("Web Scrapping finished...")
+
+    # Start MongoDB importing & processing
+    print("MongoDB uploading and processing launched...")
+
+    db = AtlasDB(str(season_input))
+
+    for team in teams:
+        db.add_team(team)
+
+    today = datetime.date.today()
+    time_delta = datetime.timedelta(2)
+    minimum_date = today - time_delta
+    print(today, minimum_date)
+    for game in games:
+        if(game['date'].date() <= today) & (game['date'].date() > minimum_date):
+            print(game['date'].date())
+            db.add_game(game)
+            if(game['not_played'] == False):
+                players_home, players_visitor = scrap_player_stats_from_game(game["home_nick"], game["visitor_nick"], game["csk"], game['date'])
+                for stat in players_home:
+                    db.add_player_stats(game["csk"], stat["name"], game["home_nick"], stat)
+                for stat in players_visitor:
+                    db.add_player_stats(game["csk"], stat["name"], game["visitor_nick"], stat)
+            
+
+    print("MongoDB uploading and processing finished...")
+
 
 
 # Scrap teams from current URL
@@ -119,6 +175,9 @@ def scrap_team(season):
 
 # Scrap games from team from season
 def scrap_games(season, teams):
+    today = datetime.datetime.today()
+    time_delta = datetime.timedelta(1)
+    today = today - time_delta
     games = []
     driver.get("https://www.basketball-reference.com/leagues/NBA_" + season + "_games.html")
 
@@ -139,6 +198,7 @@ def scrap_games(season, teams):
             rows = table.find("tbody").find_all("tr", {"class": None})
             for row in rows:
                 game = {}
+                has_not_happened = True
 
                 date_th = row.find("th", {"data-stat": "date_game"})
                 if date_th is not None:
@@ -149,6 +209,12 @@ def scrap_games(season, teams):
                     date_day = int(date_text[6:8])
                     date = datetime.datetime(date_year, date_month, date_day)
                     game["date"] = date
+                    if(date < today):
+                        has_not_happened = False
+
+                
+                game['not_played'] = has_not_happened
+
 
                 game_hour = row.find("td", {"data-stat": "game_start_time"})
                 if game_hour is not None:
@@ -163,22 +229,22 @@ def scrap_games(season, teams):
                     game["home_nick"] = home_nick.a["href"][7:10]
 
                 home_pts = row.find("td", {"data-stat": "home_pts"})
-                if home_pts is not None:
+                if (home_pts is not None) & (has_not_happened == False):
                     game["home_pts"] = int(home_pts.text)
 
                 visitor_pts = row.find("td", {"data-stat": "visitor_pts"})
-                if visitor_pts is not None:
+                if (visitor_pts is not None) & (has_not_happened == False):
                     game["visitor_pts"] = int(visitor_pts.text)
 
                 overtime = row.find("td", {"data-stat": "overtimes"})
-                if overtime is not None:
+                if (overtime is not None) & (has_not_happened == False):
                     if(overtime.text != "") &(overtime.text != " "):
                         game["overtime"] = True
                     else:
                         game["overtime"] = False
                 
                 attendance = row.find("td", {"data-stat": "attendance"})
-                if attendance is not None:
+                if (attendance is not None) & (has_not_happened == False):
                     if attendance.text is not None:
                         if attendance.text != "":
                             game["attendance"] = int(attendance.text.replace(",", ""))
@@ -187,6 +253,9 @@ def scrap_games(season, teams):
 
                 games.append(game)
                 # print(game)
+    print("getting odds for games")
+    games_odds = get_game_odds()
+    print("done")
     for game in games:
         for team in teams:
             if(team['nick'] == game['home_nick']):
@@ -199,21 +268,33 @@ def scrap_games(season, teams):
                 game['home_elo_before_game'] = home_team['elo_before_game']
                 game['visitor_elo_before_game'] = visitor_team['elo_before_game']
 
-                # si victoire de l'equipe home
-                if(game['home_pts'] > game['visitor_pts']):
-                    game['winner'] = 1
-                    p_win = 1/(1 + pow(10., -(home_team['elo_before_game'] - visitor_team['elo_before_game'])/400))
-                    delta = 20*(1 - p_win)
-                    home_team['elo_before_game'] = home_team['elo_before_game'] + delta
-                    visitor_team['elo_before_game'] = visitor_team['elo_before_game'] - delta
+                if(game['not_played'] == False):
+                    # si victoire de l'equipe home
+                    if(game['home_pts'] > game['visitor_pts']):
+                        game['winner'] = 1
+                        p_win = 1/(1 + pow(10., -(home_team['elo_before_game'] - visitor_team['elo_before_game'])/400))
+                        delta = 20*(1 - p_win)
+                        home_team['elo_before_game'] = home_team['elo_before_game'] + delta
+                        visitor_team['elo_before_game'] = visitor_team['elo_before_game'] - delta
 
-                # si égalité ou défaite de l'équipe home
+                    # si égalité ou défaite de l'équipe home
+                    else:
+                        game['winner'] = 0
+                        p_win = 1/(1 + pow(10., -(visitor_team['elo_before_game'] - home_team['elo_before_game'])/400))
+                        delta = 20*(1 - p_win)
+                        home_team['elo_before_game'] = home_team['elo_before_game'] - delta
+                        visitor_team['elo_before_game'] = visitor_team['elo_before_game'] + delta
+
+                #Si le match n'a pas été joué, on va chercher sa côte      
                 else:
-                    game['winner'] = 0
-                    p_win = 1/(1 + pow(10., -(visitor_team['elo_before_game'] - home_team['elo_before_game'])/400))
-                    delta = 20*(1 - p_win)
-                    home_team['elo_before_game'] = home_team['elo_before_game'] - delta
-                    visitor_team['elo_before_game'] = visitor_team['elo_before_game'] + delta
+                    game['home_odd'] = 1
+                    game['visitor_odd'] = 1
+                    for game_odds in games_odds:
+                        if(game_odds["home_team"] == home_team["name"]) & (game_odds["visitor_team"] == visitor_team["name"]):
+                            game['home_odd'] = game_odds['home_odd']
+                            game['visitor_odd'] = game_odds['visitor_odd']
+                        
+
     
     for team in teams:
         team.pop('elo_before_game', None)
@@ -367,6 +448,39 @@ def scrap_player_stats_from_game(home, visitor, csk, date):
     return roster_home, roster_visitor
 
 
+def get_game_odds():
+    req = requests.get("https://www.wincomparator.com/fr-fr/cotes/basket/usa/nba-id306/")
+    soup = BeautifulSoup(req.text, "lxml")
+    rows = soup.find_all("div",{"class":"event__item__odd"})
+    games_odd = []
+    for row in rows:
+        game = {
+            "home_odd" :1,
+            "visitor_odd":1,
+        }
+        div_home = row.find("span", {"class":"mr-2"})
+        if(div_home != None):
+            game['home_team'] = div_home.text
+
+        div_visitor = row.find("span", {"class":"ml-2"})
+        if(div_visitor != None):
+            game['visitor_team'] = div_visitor.text
+
+        odd_div = row.find_all("a", {"class":"event__item__odd"})
+        if(odd_div != None):
+            if(len(odd_div) >= 2):
+                div_home_odd = odd_div[0].find('span')
+                div_visitor_odd = odd_div[1].find('span')
+                if(div_home_odd != None):
+                    game["home_odd"] = float(div_home_odd.text)
+                if(div_visitor_odd != None):
+                    game["visitor_odd"] = float(div_visitor_odd.text)
+
+        games_odd.append(game)
+
+    return games_odd
+
+
 # Entry Point for the application
 if __name__ == '__main__':
-    main()
+    daily_scrapping()

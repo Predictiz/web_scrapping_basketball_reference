@@ -26,7 +26,18 @@ class AtlasDB:
     def add_game(self, game):
         visitor = self.table_team.find_one({"nick": game["visitor_nick"]})
         home = self.table_team.find_one({"nick": game["home_nick"]})
+        existing_game = self.table_game.find_one({"csk": game["csk"]})
         # Insert in Games
+        if(existing_game is not None):
+            try:
+                game["home_odd"] = existing_game["home_odd"]
+                game["visitor_odd"] = existing_game["visitor_odd"]
+            except Exception:
+                print("no odd for this game")
+                game["home_odd"] = 1
+                game["visitor_odd"] = 1
+            self.table_game.delete_one({"csk": game["csk"]})
+
         if (visitor is not None) & (home is not None):
             game["visitor_id"] = visitor["_id"]
             game["home_id"] = home["_id"]
