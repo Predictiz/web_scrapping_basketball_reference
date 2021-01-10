@@ -34,9 +34,10 @@ def main():
     for team in teams:
         db.add_team(team)
 
+    today = datetime.date.today()
     i = 1
     for game in games:
-        if(i > limit_input):
+        if(i > limit_input) & (game['date'].date() < today) & (game['not_played'] == False):
             players_home, players_visitor = scrap_player_stats_from_game(game["home_nick"], game["visitor_nick"], game["csk"], game['date'])
             db.add_game(game)
             for stat in players_home:
