@@ -1,5 +1,4 @@
 import requests
-from selenium_chrome_driver import driver
 from bs4 import BeautifulSoup
 from dao import AtlasDB
 import datetime
@@ -10,117 +9,56 @@ parser = "lxml"
 
 def main():
     print("Web Scrapping launched...")
-    season_input = int(input("Quelle saison ? (Format XXXX) : "))
-    limit_input = int(input(" match à partir duquel commencez le scrapping  (0 pour commencer au début): "))
-    # season_input = int("2019")
-    # Open the WebBrowser
-    driver.get("https://www.basketball-reference.com/leagues/")
-    # Go to the wanted season stats page
-    stats_table = driver.find_element_by_id("stats")
-    season = stats_table.find_element_by_xpath(
-        "//th[@data-stat='season' and ./a/text()='" + str(season_input - 1) + "-" + str(season_input)[2:] + "']/a")
-    if(season.is_displayed()) & (season.is_enabled()):
-        try:
-            season.click()
-        except Exception:
-            driver.implicitly_wait(5)
-            season.click()
-    print("Season accessed")
-    # Scrap all teams with players for the season
-    teams = scrap_team(season_input)
+    # season_input = int(input("Quelle saison ? (Format XXXX) : "))
+    # limit_input = int(input(" match à partir duquel commencez le scrapping  (0 pour commencer au début): "))
+    for season_input in range(2012,2015):
+        limit_input = 0
+        print("Season accessed")
+        # Scrap all teams with players for the season
+        teams = scrap_team(season_input)
 
-    # Scrap the stats from all games
-    games = scrap_games(str(season_input), teams)
+        # Scrap the stats from all games
+        games = scrap_games(str(season_input), teams)
 
-    # Scrap the stats from the whole players for whole games
-    # for game in games:
-    #     players_home, players_visitor = scrap_player_stats_from_game(game["home"], game["visitor"], game["csk"])
+    
+        # Close the selenium driver
+        print("Web Scrapping finished...")
 
-    # Close the selenium driver
-    driver.close()
-    print("Web Scrapping finished...")
+        # Start MongoDB importing & processing
+        print("MongoDB uploading and processing launched...")
 
-    # Start MongoDB importing & processing
-    print("MongoDB uploading and processing launched...")
+        db = AtlasDB(str(season_input))
 
-    db = AtlasDB(str(season_input))
+        for team in teams:
+            db.add_team(team)
 
-    for team in teams:
-        db.add_team(team)
-
-    i = 1
-    for game in games:
-        if(i > limit_input):
-            players_home, players_visitor = scrap_player_stats_from_game(game["home_nick"], game["visitor_nick"], game["csk"], game['date'])
-            db.add_game(game)
-            for stat in players_home:
-                db.add_player_stats(game["csk"], stat["name"], game["home_nick"], stat)
-            for stat in players_visitor:
-                db.add_player_stats(game["csk"], stat["name"], game["visitor_nick"], stat)
-        i +=1
-
-    print("MongoDB uploading and processing finished...")
-
-
-def daily_scrapping():
-
-    print("Daily Scrapping launched...")
-    season_input = 2021
-    # season_input = int("2019")
-    # Open the WebBrowser
-    driver.get("https://www.basketball-reference.com/leagues/")
-    # Go to the wanted season stats page
-    stats_table = driver.find_element_by_id("stats")
-    season = stats_table.find_element_by_xpath(
-        "//th[@data-stat='season' and ./a/text()='" + str(season_input - 1) + "-" + str(season_input)[2:] + "']/a")
-    if(season.is_displayed()) & (season.is_enabled()):
-        season.click()
-    print("Season accessed")
-    # Scrap all teams with players for the season
-    teams = scrap_team(season_input)
-
-    # Scrap the stats from all games
-    games = scrap_games(str(season_input), teams)
-
-    # Close the selenium driver
-    driver.close()
-    print("Web Scrapping finished...")
-
-    # Start MongoDB importing & processing
-    print("MongoDB uploading and processing launched...")
-
-    db = AtlasDB(str(season_input))
-
-    for team in teams:
-        db.add_team(team)
-
-    today = datetime.date.today()
-    time_delta = datetime.timedelta(2)
-    minimum_date = today - time_delta
-    print(today, minimum_date)
-    for game in games:
-        if(game['date'].date() <= today) & (game['date'].date() > minimum_date):
-            print(game['date'].date())
-            db.add_game(game)
-            if(game['not_played'] == False):
+        i = 1
+        for game in games:
+            if(i > limit_input):
                 players_home, players_visitor = scrap_player_stats_from_game(game["home_nick"], game["visitor_nick"], game["csk"], game['date'])
+                db.add_game(game)
                 for stat in players_home:
                     db.add_player_stats(game["csk"], stat["name"], game["home_nick"], stat)
                 for stat in players_visitor:
                     db.add_player_stats(game["csk"], stat["name"], game["visitor_nick"], stat)
-            
+            i +=1
 
-    print("MongoDB uploading and processing finished...")
+        print("MongoDB uploading and processing finished...")
+
 
 
 
 # Scrap teams from current URL
 def scrap_team(season):
     teams = []
-    req = requests.get(driver.current_url)
+    req = requests.get("https://www.basketball-reference.com/leagues/NBA_"+str(season)+".html")
     soup = BeautifulSoup(req.text, parser)
-    confs_standings_e = soup.find("table", {"id": "confs_standings_E"}).find_all("tr", {"class": "full_table"})
-    confs_standings_w = soup.find("table", {"id": "confs_standings_W"}).find_all("tr", {"class": "full_table"})
+    if(season >2015):
+        confs_standings_e = soup.find("table", {"id": "confs_standings_E"}).find_all("tr", {"class": "full_table"})
+        confs_standings_w = soup.find("table", {"id": "confs_standings_W"}).find_all("tr", {"class": "full_table"})
+    else:
+        confs_standings_e = soup.find("table", {"id": "divs_standings_E"}).find_all("tr", {"class": "full_table"})
+        confs_standings_w = soup.find("table", {"id": "divs_standings_W"}).find_all("tr", {"class": "full_table"})
 
     for row in confs_standings_e:
         team = {"nick": row.contents[0].a["href"][7:10],
@@ -154,22 +92,24 @@ def scrap_team(season):
         teams.append(team)
 
     if(season <= 2017):
-        season_year = 2017
+        for team in teams:
+            team['elo_score'] = 1500
+            team['elo_before_game'] = 1500
     else:
         season_year = season -1
-    url = requests.get("https://projects.fivethirtyeight.com/"+ str(season_year)+"-nba-predictions/")
-    soup = BeautifulSoup(url.text,parser)
-    rows_rating = soup.find("table", {"id":"standings-table"}).find("tbody").find_all("tr")
-    for row_rating in rows_rating:
-        if(row_rating != None):
-            team_cell = row_rating.find('td',{'class': "team"})
-            team_nick = team_cell['data-str'].split()
-            for team in teams:
-                splitted_name = team['name'].split()
-                nick = splitted_name[len(splitted_name)-1]
-                if(nick == team_nick[len(team_nick)-1]):
-                    team['elo_score'] = int(row_rating.find('td').text)
-                    team['elo_before_game'] = int(row_rating.find('td').text)
+        url = requests.get("https://projects.fivethirtyeight.com/"+ str(season_year)+"-nba-predictions/")
+        soup = BeautifulSoup(url.text,parser)
+        rows_rating = soup.find("table", {"id":"standings-table"}).find("tbody").find_all("tr")
+        for row_rating in rows_rating:
+            if(row_rating != None):
+                team_cell = row_rating.find('td',{'class': "team"})
+                team_nick = team_cell['data-str'].split()
+                for team in teams:
+                    splitted_name = team['name'].split()
+                    nick = splitted_name[len(splitted_name)-1]
+                    if(nick == team_nick[len(team_nick)-1]):
+                        team['elo_score'] = int(row_rating.find('td').text)
+                        team['elo_before_game'] = int(row_rating.find('td').text)
     return teams
 
 
@@ -179,18 +119,16 @@ def scrap_games(season, teams):
     time_delta = datetime.timedelta(1)
     today = today - time_delta
     games = []
-    driver.get("https://www.basketball-reference.com/leagues/NBA_" + season + "_games.html")
-
-    filters = driver.find_element_by_class_name("filter")
+    req_games = requests.get("https://www.basketball-reference.com/leagues/NBA_" + season + "_games.html")
+    req_list = BeautifulSoup(req_games.text, parser)
+    filters = req_list.find("div", {"class":"filter"})
     months = []
-    for a in filters.find_elements_by_xpath(".//a"):
-        months.append(a.get_attribute("href"))
+    for a in filters.find_all("a"):
+        months.append(a["href"])
 
     for month in months:
-        driver.get(month)
-        # print(month)
-
-        req = requests.get(driver.current_url)
+ 
+        req = requests.get("https://www.basketball-reference.com/"+month)
         soup = BeautifulSoup(req.text, parser)
         table = soup.find("table", {"id": "schedule"})
 
@@ -483,4 +421,4 @@ def get_game_odds():
 
 # Entry Point for the application
 if __name__ == '__main__':
-    daily_scrapping()
+    main()
