@@ -9,41 +9,43 @@ parser = "lxml"
 
 def main():
     print("Web Scrapping launched...")
-    # season_input = int(input("Quelle saison ? (Format XXXX) : "))
-    # limit_input = int(input(" match à partir duquel commencez le scrapping  (0 pour commencer au début): "))
-    for season_input in range(2012,2015):
-        limit_input = 0
-        print("Season accessed")
-        # Scrap all teams with players for the season
-        teams = scrap_team(season_input)
+    season_input = int(input("Quelle saison ? (Format XXXX) : "))
+    limit_input = int(input(" match à partir duquel commencez le scrapping  (0 pour commencer au début): "))
+  
+    print("Season accessed")
+    # Scrap all teams with players for the season
+    teams = scrap_team(season_input)
 
-        # Scrap the stats from all games
-        games = scrap_games(str(season_input), teams)
+    # Scrap the stats from all games
+    games = scrap_games(str(season_input), teams)
 
-    
-        # Close the selenium driver
-        print("Web Scrapping finished...")
+    # Scrap the stats from the whole players for whole games
+    # for game in games:
+    #     players_home, players_visitor = scrap_player_stats_from_game(game["home"], game["visitor"], game["csk"])
 
-        # Start MongoDB importing & processing
-        print("MongoDB uploading and processing launched...")
+    # Close the selenium driver
+    print("Web Scrapping finished...")
 
-        db = AtlasDB(str(season_input))
+    # Start MongoDB importing & processing
+    print("MongoDB uploading and processing launched...")
 
-        for team in teams:
-            db.add_team(team)
+    db = AtlasDB(str(season_input))
 
-        i = 1
-        for game in games:
-            if(i > limit_input):
-                players_home, players_visitor = scrap_player_stats_from_game(game["home_nick"], game["visitor_nick"], game["csk"], game['date'])
-                db.add_game(game)
-                for stat in players_home:
-                    db.add_player_stats(game["csk"], stat["name"], game["home_nick"], stat)
-                for stat in players_visitor:
-                    db.add_player_stats(game["csk"], stat["name"], game["visitor_nick"], stat)
-            i +=1
+    for team in teams:
+        db.add_team(team)
 
-        print("MongoDB uploading and processing finished...")
+    i = 1
+    for game in games:
+        if(i > limit_input):
+            players_home, players_visitor = scrap_player_stats_from_game(game["home_nick"], game["visitor_nick"], game["csk"], game['date'])
+            db.add_game(game)
+            for stat in players_home:
+                db.add_player_stats(game["csk"], stat["name"], game["home_nick"], stat)
+            for stat in players_visitor:
+                db.add_player_stats(game["csk"], stat["name"], game["visitor_nick"], stat)
+        i +=1
+
+    print("MongoDB uploading and processing finished...")
 
 
 
